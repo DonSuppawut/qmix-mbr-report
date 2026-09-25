@@ -8,6 +8,8 @@
 
 โจทย์และกติกาทั้งหมด: Google Doc "โจทย์สำหรับ Claude Code — สร้างระบบสร้างรายงาน MBR EST" + `QMixMBR.md` v1.8 + `QMixMBR • PROJECT-CONTEXT.md` (ใน `01_PROJECTS/QMixMBR/`) — ข้อตัดสินใจของ Don หลังรายงาน Aug'69 บันทึกไว้ใน PROJECT-CONTEXT ข้อ 4
 
+**ที่เก็บ:** โค้ดใช้งานอยู่ที่ `D:\QMix\AI\qmix-mbr-report` (git local) — สำเนาเก็บถาวรบน Google Drive `01_PROJECTS/QMixMBR/mbr-report-generator/` (zip ของ commit + README นี้)
+
 ## ติดตั้ง (ครั้งแรกครั้งเดียว)
 
 ```
