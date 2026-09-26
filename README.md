@@ -29,6 +29,9 @@ python -m pip install -r requirements.txt
 2. **ดึง snapshot จากฐานข้อมูล** (ให้ Claude ทำผ่าน MCP `query_eastsales` — สคริปต์ Python เรียก MCP เองไม่ได้):
    `east_plant_pnl_monthly` เดือนนั้น scenario=Actual → `data/snapshots/2026-09/east_plant_pnl_monthly_actual.json`
    และอัปเดต `data/snapshots/east_plants.json` ถ้ามีโรงงานใหม่
+   และ **ปริมาณรถ CCP จากเที่ยวผลิต** — `east_production_dispatches` กรอง `truck_code` ตามทะเบียน `east_sub_trucks_ccp`
+   รวม `actual_vol` รายวัน → `data/snapshots/2026-09/ccp_dispatch_daily.json` (รูปแบบเดียวกับของ 2026-06/07/08)
+   ใช้กับใบแจ้งหนี้ CCP ของเดือนนั้นที่ไม่ระบุ m³ — ถ้าต้องใช้แต่ยังไม่มีไฟล์ สคริปต์จะหยุดและบอกช่วงวันที่ต้องดึง
 3. **การปรับปรุง GL เฉพาะ section** (ถ้า Don สั่ง) → `data/adjustments/2026-09.json` (ดูตัวอย่างของ 2026-08)
 4. **ตรวจข้อมูลก่อนสร้างรายงาน:**
    ```
@@ -69,6 +72,6 @@ python -m pip install -r requirements.txt
 ## ข้อจำกัดที่รู้แล้ว
 
 - เดือน ม.ค. ยังไม่รองรับ (LM ต้องใช้ไฟล์ TVC ของปีก่อน) และ `validate_month.py` ยังผูกกับปี 2569 (golden values ก.ค. 69)
-- ตาราง CCP ที่ใบแจ้งหนี้ไม่มี m³ ยังนับปริมาณเฉพาะที่ระบุในข้อความ GL — รอเปิดสิทธิ์ `east_production_dispatches` (Don อนุมัติหลักการแล้ว ต้องเสนอ SQL ก่อน)
+- ใบแจ้งหนี้ CCP ที่ไม่มี m³: ใช้ปริมาณจากเที่ยวผลิตของรถ CCP ในช่วงวันที่ของใบแจ้งหนี้ (เปิดสิทธิ์ 26 ก.ย. 69 — ตรวจแล้วตรงกับ m³ ในข้อความทุกช่วงที่มี) ถ้าช่วงวันที่ทับกับรายการที่มี m³ บางส่วน สคริปต์จะหยุดให้ถาม Don
 - ข้อความวิเคราะห์ของ ส.ค. 69 คัดจากรายงานเดิม บางจุดอ้างตัวเลขก่อน Don เปลี่ยนกติกา (เช่น Mega 3,410)
 - ห้ามเก็บ secret ใด ๆ ในโฟลเดอร์นี้ (ไม่มีการใช้ secret อยู่แล้ว)

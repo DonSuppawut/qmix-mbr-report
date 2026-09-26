@@ -35,6 +35,11 @@ INTENTIONAL = [
     ("3.1", "Mega", "*", "China State counted as Mega on every row (Don 2026-09-24)"),
     ("3.1", "Medium", "*", "China State counted as Mega on every row (Don 2026-09-24)"),
     ("3.3", "*", {1, 3, 7, 9}, "Mega/Medium columns — China State counted as Mega (Don 2026-09-24)"),
+    # Jun/Jul columns: CCP invoices without m³ (1-15 มิ.ย., 1-15 ก.ค.) now take volume from production dispatches
+    # (Approval request 3, 2026-09-26) — Aug'69 left them at 0 m³, overstating the CCP/sub-contractor rate.
+    ("6.4", "*", {5, 6, 8, 9}, "CCP volume without m³ in the invoice taken from production dispatches (2026-09-26)"),
+    ("6.5", "CCP", {6, 7, 9, 10}, "CCP volume without m³ in the invoice taken from production dispatches (2026-09-26)"),
+    ("6.5", "รวม", {5, 6, 8, 9}, "CCP volume without m³ in the invoice taken from production dispatches (2026-09-26)"),
 ]
 ALLOWED_DROPPED_ROWS = {"วัสดุคลังและอุปกรณ์ (STORES & EQUIPMENT) (บาท/m³)", "ค่าน้ำ (บาท/m³ — ไม่รวมใน Assign Costs รวม*)"}
 TAGS = ("table", "tr", "td", "th", "thead", "tbody", "section", "figure", "svg", "div", "p", "h2", "h3")

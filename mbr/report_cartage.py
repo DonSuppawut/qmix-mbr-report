@@ -7,7 +7,9 @@ from pathlib import Path
 from .fmt import esc, num, th_month_short
 from .report import MonthData
 from .tvc import read_scope
-from .vendors import cost_report_path, vendor_month
+from .vendors import add_ccp_dispatch_volume, cost_report_path, dispatch_snapshot_path, vendor_month
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 @dataclass
@@ -37,6 +39,7 @@ def load_cartage_months(account: Path, tvc_current: Path, year: int, month: int,
         if abs(total - d["cartage_sub"]) > 1.0:
             raise ValueError(f"{y}-{m:02d}: vendor total {total:,.2f} != TVC row 164 {d['cartage_sub']:,.2f} — "
                              "a vendor text pattern is missing; stop and check with Don")
+        v = add_ccp_dispatch_volume(v, dispatch_snapshot_path(ROOT, y, m), y, m)
         out.append(CartageMonth(y, m, d["cartage"], d["cartage_sub"], d["volume"], v))
     return out
 
@@ -98,7 +101,8 @@ def section6_5(months: list[CartageMonth]) -> list[str]:
             '"07.ค่าเช่ารถบรรทุกคอนกรีต" ของ EST (Accrue/Reverse/ปรับปรุงยอดเดือนก่อนที่ลงในเดือนนี้) เพื่อให้ยอดรวมตรงกับ '
             'Cartage รถผู้รับเหมาในไฟล์ TVC พอดี แต่ปริมาณ (m³) นับเฉพาะรายการที่ระบุเดือนปัจจุบันในข้อความ GL — '
             'อัตราบาท/m³ รายเวนเดอร์จึงเป็นอัตราผสม (blended) ไม่ใช่ต้นทุนต่อหน่วยของเดือนนี้ล้วน ๆ — '
-            'CCP รวม "บมจ.ผลิตภัณฑ์คอนกรีตชลบุรี" และ "ค่าบริการ(เช่า)รถโม่พร้อมคนขับ" (บางรายการไม่มี m³ ในข้อความ) — '
+            'CCP รวม "บมจ.ผลิตภัณฑ์คอนกรีตชลบุรี" และ "ค่าบริการ(เช่า)รถโม่พร้อมคนขับ" — ใบแจ้งหนี้ของเดือนนั้นที่ไม่ระบุ m³ '
+            'ใช้ปริมาณจากเที่ยวผลิตจริงของรถ CCP (ตามทะเบียนรถผู้รับเหมา) ในช่วงวันที่ของใบแจ้งหนี้ — '
             'TMP ราคาสัญญา 60 บาท/m³ นับเป็นรถ QMix — อินเดียร์99 เป็น pass-through ไม่กระทบ EBITDA สุทธิ</div>']
 
 
