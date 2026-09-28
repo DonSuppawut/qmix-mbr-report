@@ -58,6 +58,7 @@ def section3(md: MonthData, cur_rows: list[N.Row], lm_rows: list[N.Row]) -> str:
                     f"<td>{num(na)}</td><td>{num(nl)}</td>{_signed_pct(_pct(na, nl))}</tr>")
     parts = ['<h2 id="s3">3. การวิเคราะห์ด้านการขาย (Sales Analysis)</h2>',
              f'<p class="meta">จากไฟล์ Netcon ระดับ Mix/Site Code (เดือน {esc(cm)} และ {esc(lmm)}) เฉพาะ Director=EST '
+             + (f'เขต {esc(md.area)} (คอลัมน์ AAO ของไฟล์) ' if md.area else '') +
              'ครอบคลุม Core+PMT — Segment ตามปริมาณโครงการ (≤200 Tiny, 201–1,000 Small, 1,001–5,000 Medium, '
              '5,001–20,000 Large, 20,001+ Mega) ใช้กับแถวที่ tag "ส่วนลดพิเศษ" เท่านั้น แถวที่มี Segment ระบุอยู่แล้วคงเดิม — '
              'ไชน่า สเตท คอนสตรัคชั่นนับเป็น Mega ทุกโครงการ (Don) — เรียง Mega→Large→Medium→Small→Tiny เสมอ '

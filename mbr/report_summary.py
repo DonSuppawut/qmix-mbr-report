@@ -4,7 +4,7 @@ from __future__ import annotations
 from . import calc, svg
 from .fmt import TH_MONTH_ABBR, delta_class, esc, num, th_month_long, th_month_short
 from .forecast import summary
-from .report import SCOPE_TITLES, MonthData, _box, _table
+from .report import MonthData, _box, _table
 
 FC_TITLES = {"combined": "EST รวม (Core + PMT)", "core": "EST Core", "pmt": "EST PMT"}
 
@@ -68,9 +68,10 @@ def section9(md: MonthData, fc: dict, source_name: str) -> str:
     return '<section class="wrap">' + "\n".join(p for p in parts if p) + "</section>"
 
 
-def section10(md: MonthData) -> str:
+def section10(md: MonthData, no: int = 10) -> str:
     rows = []
-    for scope, label in (("combined", "EST รวม (Combined)"), ("core", "EST Core"), ("pmt", "EST PMT")):
+    unit = md.area or "EST"
+    for scope, label in (("combined", f"{unit} รวม (Combined)"), ("core", f"{unit} Core"), ("pmt", f"{unit} PMT")):
         a, p = md.actual[scope], md.plan[scope]
         diff = a["npat"] - p["npat"]
         pct = a["volume"] / p["volume"] * 100 if p["volume"] else 0.0
@@ -78,16 +79,16 @@ def section10(md: MonthData) -> str:
                     f'<td class="{delta_class(diff)}">{num(diff, 0, True)}</td>'
                     f'<td class="{delta_class(pct - 100)}">{pct:.1f}%</td></tr>')
     n = md.narrative
-    parts = ['<h2 id="s10">10. สรุปและข้อเสนอแนะ</h2>',
-             '<p class="meta">สรุปภาพรวมจากหัวข้อ 1–9 พร้อมข้อเสนอแนะเชิงปฏิบัติการสำหรับเดือนถัดไป — '
+    parts = [f'<h2 id="s{no}">{no}. สรุปและข้อเสนอแนะ</h2>',
+             f'<p class="meta">สรุปภาพรวมจากหัวข้อ 1–{no - 1} พร้อมข้อเสนอแนะเชิงปฏิบัติการสำหรับเดือนถัดไป — '
              'อ้างอิงเฉพาะตัวเลขที่ยืนยันแล้วในแต่ละหัวข้อ</p>',
-             "<h3>10.1 สรุปภาพรวมผลประกอบการ</h3>",
+             f"<h3>{no}.1 สรุปภาพรวมผลประกอบการ</h3>",
              _table(["รายการ", "NPAT Actual (บาท)", "NPAT AP (บาท)", "ผลต่าง", "ปริมาณขาย % ของแผน"], rows),
              f"<p>{n['s10.overview']}</p>" if n.get("s10.overview") else ""]
     if n.get("s10.points"):
-        parts += ["<h3>10.2 ประเด็นสำคัญรายหัวข้อ</h3>",
+        parts += [f"<h3>{no}.2 ประเด็นสำคัญรายหัวข้อ</h3>",
                   "<ul>" + "".join(f"<li>{x}</li>" for x in n["s10.points"]) + "</ul>"]
     if n.get("s10.actions"):
-        parts += ["<h3>10.3 ข้อเสนอแนะเชิงปฏิบัติการเดือนถัดไป (เรียงตามลำดับความสำคัญ)</h3>",
+        parts += [f"<h3>{no}.3 ข้อเสนอแนะเชิงปฏิบัติการเดือนถัดไป (เรียงตามลำดับความสำคัญ)</h3>",
                   "<ol>" + "".join(f"<li>{x}</li>" for x in n["s10.actions"]) + "</ol>"]
     return '<section class="wrap">' + "\n".join(p for p in parts if p) + "</section>"

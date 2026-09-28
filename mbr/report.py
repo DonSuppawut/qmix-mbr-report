@@ -51,10 +51,26 @@ class MonthData:
     hidden_plants: set = field(default_factory=set)
     trading_plants: set = field(default_factory=set)
     adjustments: dict = field(default_factory=dict)
+    area: str = ""  # "" = whole EST; "E1.1" / "E1.2" / "E2" = one AAO area (build_area_report.py)
+
+    @property
+    def unit_th(self) -> str:
+        return f"เขต {self.area}" if self.area else "ภาคตะวันออก"
 
     @property
     def lm_year_month(self) -> tuple[int, int]:
         return (self.year, self.month - 1) if self.month > 1 else (self.year - 1, 12)
+
+
+def scope_title(md: MonthData, scope: str) -> str:
+    if not md.area:
+        return SCOPE_TITLES[scope]
+    return {"combined": f"เขต {md.area} รวม (Core + PMT)", "core": f"เขต {md.area} Core",
+            "pmt": f"เขต {md.area} PMT"}[scope]
+
+
+def scope_short(md: MonthData, scope: str) -> str:
+    return f"{md.area} รวม" if md.area and scope == "combined" else SCOPE_SHORT[scope]
 
 
 def _box(cls: str, title: str, body: str | None) -> str:
@@ -98,6 +114,18 @@ def _drivers(steps, n: int = 2) -> tuple[str, str]:
     return fmt(pos), fmt(neg)
 
 
+def _override_note(md: MonthData) -> str:
+    if not md.plan.overrides:
+        return ""
+    items = ", ".join(f"{esc(WF_LABELS.get(k, k.upper()))} ไฟล์ {num(f)} → ใช้ {num(u)}" for k, (f, u) in md.plan.overrides.items())
+    return (f"— AP รวมเขตใช้ Core + PMT ของไฟล์ (เท่ากับผลรวมรายโรงงาน) เพราะคอลัมน์รวมเขตของ AP "
+            f"ไม่ได้ลงบางแถว: {items} ")
+
+
+_SCOPE_COLS_NOTE = ("(Actual: EST-Core=คอลัมน์ 16, EST-PMT=คอลัมน์ 21, EST-Core&amp;Pmt=คอลัมน์ 26 | "
+                    "AP: คอลัมน์ 35 / 36 / 25) ")
+
+
 def section1(md: MonthData) -> str:
     cur = th_month_short(md.year, md.month)
     lm = th_month_short(*md.lm_year_month)
@@ -109,7 +137,7 @@ def section1(md: MonthData) -> str:
 
     parts = [
         '<h2 id="s1">1. Executive Summary</h2>',
-        f"<p><b>ภาพรวม:</b> เดือน{th_month_long(md.year, md.month)} ภาคตะวันออกทำ NPAT ได้ <b>{num(a['npat'])} บาท</b> "
+        f"<p><b>ภาพรวม:</b> เดือน{th_month_long(md.year, md.month)} {md.unit_th}{" " if md.area else ""}ทำ NPAT ได้ <b>{num(a['npat'])} บาท</b> "
         f"เทียบกับแผน (AP) {num(p['npat'])} บาท ผลต่าง <b class=\"{delta_class(diff)}\">{num(diff, signed=True)} บาท</b></p>",
         f"<p><b>สาระสำคัญ:</b> ปัจจัยหนุนหลักคือ {up} ในขณะที่ปัจจัยฉุดคือ {down}</p>",
         f"<p><b>ข้อสังเกตเชิงบริหาร:</b> ปริมาณขายทำได้ {num(a['volume'], 1)} m³ จากแผน {num(p['volume'], 1)} m³ "
@@ -121,7 +149,7 @@ def section1(md: MonthData) -> str:
     for i, scope in enumerate(calc.SCOPES, 1):
         a_s, p_s = md.actual[scope], md.plan[scope]
         wf = calc.waterfall_npat(a_s, p_s)
-        title = f"1.{i} Waterfall NPAT: AP → Actual — {SCOPE_TITLES[scope]}"
+        title = f"1.{i} Waterfall NPAT: AP → Actual — {scope_title(md, scope)}"
         steps_lbl = [(CHART_LABELS[k], v) for k, v in wf["steps"]]
         parts += [
             f"<h3>{esc(title)}</h3>",
@@ -145,12 +173,12 @@ def section1(md: MonthData) -> str:
     parts += [
         f"<h3>1.4 EBITDA Bridge: {esc(lm)} → {esc(cur)}</h3>",
         f"<p class=\"meta\">ผลกระทบต่อ EBITDA (บาท) เทียบเดือนก่อน — ฐานคำนวณแบบเดียวกับ Waterfall (อัตราต่อคิวคิดจากปริมาณขาย)</p>",
-        _table(["รายการ"] + [SCOPE_SHORT[s] for s in calc.SCOPES], rows),
+        _table(["รายการ"] + [scope_short(md, s) for s in calc.SCOPES], rows),
     ]
     for s in calc.SCOPES:
         b = bridges[s]
-        title = f"EBITDA Bridge {lm} → {cur} — {SCOPE_TITLES[s]}"
-        parts.append('<figure><figcaption>' + esc(SCOPE_TITLES[s]) + '</figcaption>'
+        title = f"EBITDA Bridge {lm} → {cur} — {scope_title(md, s)}"
+        parts.append('<figure><figcaption>' + esc(scope_title(md, s)) + '</figcaption>'
                      + svg.waterfall(f"EBITDA {lm}", b["start"], [(CHART_LABELS[k], v) for k, v in b["steps"]],
                                      f"EBITDA {cur}", b["end"], title, height=340,
                                      sheet=f"1.4 EBITDA Bridge: {lm} → {cur}") + '</figure>')
@@ -160,8 +188,10 @@ def section1(md: MonthData) -> str:
         _box("strategy", "กลยุทธ์เดือนถัดไป", md.narrative.get("s1.strategy")),
         _box("srcnote", "แหล่งข้อมูล",
              f"บล็อก OUTPUT ของไฟล์ {esc(md.actual.source.split('/')[0])} ใช้คอลัมน์รวมของไฟล์เอง "
-             "(Actual: EST-Core=คอลัมน์ 16, EST-PMT=คอลัมน์ 21, EST-Core&amp;Pmt=คอลัมน์ 26 | AP: คอลัมน์ 35 / 36 / 25) "
-             "Waterfall และ EBITDA Bridge คิดอัตราต่อคิวจากปริมาณขาย ทำให้ผลต่างที่อธิบายไม่ได้ (residual) = 0 ทุกระดับ "
+             + (_SCOPE_COLS_NOTE if not md.area else
+                f"(คอลัมน์รวมราย AAO ของเขต {esc(md.area)}: รวม / Core / PMT — หาจากชื่อหัวคอลัมน์ทั้ง Actual และ AP) "
+                + _override_note(md))
+             + "Waterfall และ EBITDA Bridge คิดอัตราต่อคิวจากปริมาณขาย ทำให้ผลต่างที่อธิบายไม่ได้ (residual) = 0 ทุกระดับ "
              "ทั้ง 3 scope — Assign Costs รวมค่าแรง OT และผู้รับเหมา (Labour Cost) ไว้ในบรรทัดเดียว "
              "ส่วนค่าแรงพนักงานขับรถอยู่ในค่าขนส่ง"),
     ]
@@ -222,7 +252,7 @@ def section4(md: MonthData) -> str:
                 spec.append((f"Usage ({uu})", lambda d, k=uk: d[k], "sub-row"))
                 spec.append((f"Price ({pu})", lambda d, k=pk: d[k], "sub-row"))
         spec.append(("รวม Raw Material (บาท/m³)", lambda d: _per_prod(d, d["rawmat"]), "total-row"))
-        parts += [f"<h3>4.{i} {esc(SCOPE_TITLES[scope])}</h3>",
+        parts += [f"<h3>4.{i} {esc(scope_title(md, scope))}</h3>",
                   _table(_compare_header(md), _compare_rows(md, scope, spec))]
     parts += [_box("watch", "เรื่องที่ควรระวัง", md.narrative.get("s4.watch")),
               _box("strategy", "กลยุทธ์เดือนถัดไป", md.narrative.get("s4.strategy")),
@@ -257,7 +287,7 @@ def section5_scopes(md: MonthData) -> list[str]:
         spec = [("Assign Costs รวม (บาท/m³)", lambda d: _per_prod(d, calc.assign_total(d)), "category-row")]
         for label, key in _sorted_items(md, scope, ASSIGN_ITEMS):
             spec.append((f"{label} (บาท/m³)", lambda d, k=key: _per_prod(d, d[k]), ""))
-        parts += [f"<h3>5.{i} {esc(SCOPE_TITLES[scope])}</h3>",
+        parts += [f"<h3>5.{i} {esc(scope_title(md, scope))}</h3>",
                   _table(_compare_header(md), _compare_rows(md, scope, spec))]
     return parts
 
@@ -285,7 +315,7 @@ def section6_scopes(md: MonthData) -> list[str]:
         spec = [("Cartage รวม (บาท/m³)", lambda d: _per_prod(d, d["cartage"]), "category-row")]
         for label, key in _sorted_items(md, scope, CARTAGE_ITEMS):
             spec.append((f"{label} (บาท/m³)", lambda d, k=key: _per_prod(d, d[k]), ""))
-        parts += [f"<h3>6.{i} {esc(SCOPE_TITLES[scope])}</h3>",
+        parts += [f"<h3>6.{i} {esc(scope_title(md, scope))}</h3>",
                   _table(_compare_header(md), _compare_rows(md, scope, spec))]
     return parts
 
@@ -332,7 +362,7 @@ def section2(md: MonthData) -> str:
                 f"<td>{num(sl[key], dec)}</td>"
                 f'<td class="{delta_class(dap, better_up)}">{num(dap, dec, True)}</td>'
                 f'<td class="{delta_class(dlm, better_up)}">{num(dlm, dec, True)}</td></tr>')
-        parts += [f"<h3>2.{i} {esc(SCOPE_TITLES[scope])}</h3>",
+        parts += [f"<h3>2.{i} {esc(scope_title(md, scope))}</h3>",
                   _table(["รายการ", cur, "AP", lm, "เทียบ AP", "เทียบ LM"], rows)]
     parts += [
         _box("watch", "เรื่องที่ควรระวัง", md.narrative.get("s2.watch")),

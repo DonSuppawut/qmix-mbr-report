@@ -54,6 +54,16 @@ tr.memo-row td{ font-style:italic; color:#7A8580; }
 """
 
 
+# Area reports only (the EST report's HTML stays byte-identical): dense per-sample quality tables.
+AREA_CSS = """
+.qc table{ font-size:10px; margin:6px 0 10px; }
+.qc th, .qc td{ padding:3px 4px; white-space:nowrap; }
+.qc td:first-child{ white-space:normal; min-width:130px; }
+h4{ color:#2c3e50; margin:18px 0 4px; font-size:14px; }
+@media print{ .qc{ break-inside:avoid; } }
+"""
+
+
 def _font_face() -> str:
     faces = []
     for weight, name in ((400, "Sarabun-Regular.ttf"), (700, "Sarabun-Bold.ttf")):
@@ -63,23 +73,26 @@ def _font_face() -> str:
     return "\n".join(faces)
 
 
-def build_page(year: int, month: int, sections: list[str]) -> str:
+def build_page(year: int, month: int, sections: list[str], area: str = "") -> str:
     toc = []
     for s in sections:
         m = re.search(r'<h2 id="(s\d+)">(.*?)</h2>', s)
         if m:
             toc.append(f'<a href="#{m.group(1)}">{m.group(2)}</a>')
-    title = f"MBR EST {th_month_long(year, month)}"
+    title = f"MBR EST {area + ' ' if area else ''}{th_month_long(year, month)}"
+    where = f"ภาคตะวันออก (EST) เขต {esc(area)}" if area else "ภาคตะวันออก (EST)"
+    scope = (f"ขอบเขต: เฉพาะโรงงานในเขต {esc(area)} — Core + PMT" if area
+             else "ขอบเขต: Core + PMT (รวม Insource ฝั่ง PMT)")
     cover = (
         '<div class="wrap cover">'
         '<h1>รายงานผลประกอบการประจำเดือน (MBR)</h1>'
-        f'<h1 class="line2">ธุรกิจคอนกรีตผสมเสร็จ ภาคตะวันออก (EST) — เดือน{esc(th_month_long(year, month))}</h1>'
-        '<p class="scope">ขอบเขต: Core + PMT (รวม Insource ฝั่ง PMT)</p>'
+        f'<h1 class="line2">ธุรกิจคอนกรีตผสมเสร็จ {where} — เดือน{esc(th_month_long(year, month))}</h1>'
+        f'<p class="scope">{scope}</p>'
         f'<nav class="toc">{"".join(toc)}</nav></div>'
     )
     return (
         "<!DOCTYPE html>\n<html lang=\"th\"><head><meta charset=\"utf-8\">"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
-        f"<title>{esc(title)}</title><style>{_font_face()}{LAYOUT_CSS}{STANDARD_TABLE_CSS}</style></head>"
+        f"<title>{esc(title)}</title><style>{_font_face()}{LAYOUT_CSS}{STANDARD_TABLE_CSS}{AREA_CSS if area else ''}</style></head>"
         f"<body>{cover}{''.join(sections)}</body></html>\n"
     )
