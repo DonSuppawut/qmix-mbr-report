@@ -1,7 +1,7 @@
 """Reader for `MM.26 TVC by Plant by Month.xlsx` — scope-level OUTPUT/INPUT rows."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import openpyxl
@@ -103,6 +103,7 @@ class ScopeData:
     kind: str  # "A" actual / "P" plan
     values: dict[str, dict[str, float]]  # scope -> key -> value
     source: str
+    overrides: dict[str, tuple[float, float]] = field(default_factory=dict)  # key -> (file value, value used)
 
     def __getitem__(self, scope: str) -> dict[str, float]:
         return self.values[scope]
@@ -140,6 +141,11 @@ def read_scope(path: Path, month: int, kind: str) -> ScopeData:
                 f"{path.name}/{sheet}: col {col} header is {header_row[col - 1]!r}, expected {SCOPE_HEADERS[scope]}"
             )
 
+    return _read_cols(path, rows, sheet, month, kind, cols)
+
+
+def _read_cols(path: Path, rows: list[tuple], sheet: str, month: int, kind: str, cols: dict[str, int]) -> ScopeData:
+    offset = 0 if kind == "A" else PLAN_ROW_OFFSET
     values: dict[str, dict[str, float]] = {s: {} for s in cols}
     for key, (arow, label) in ROWS.items():
         r = arow + offset
@@ -155,9 +161,50 @@ def read_scope(path: Path, month: int, kind: str) -> ScopeData:
     return ScopeData(month=month, kind=kind, values=values, source=f"{path.name}/{sheet}")
 
 
+def area_columns(path: Path, month: int, kind: str, area: str) -> dict[str, int]:
+    """1-based AAO subtotal columns of one area, found by header name (row 137 Actual / 133 Plan).
+    Actual sheets: 'EST1/1' + 'EST1/1Core' + 'EST1/1Prmt' (Jan: 'EST1/1PMT'); Plan: same names, PMT spelled 'PMT'."""
+    sheet = f"{MONTH_ABBR[month - 1]}{kind}"
+    rows = _sheet_rows(path, sheet)
+    header = rows[137 + (0 if kind == "A" else PLAN_ROW_OFFSET) - 1]
+    aao = AREA_TO_AAO[area]
+    wanted = {"combined": (aao,), "core": (aao + "Core",), "pmt": (aao + "PMT", aao + "Prmt")}
+    cols = {}
+    for scope, names in wanted.items():
+        hits = [c + 1 for c, h in enumerate(header) if _norm(h) in names]
+        if len(hits) != 1:
+            raise TVCLayoutError(f"{path.name}/{sheet}: header {names} found in columns {hits}, expected exactly one")
+        cols[scope] = hits[0]
+    return cols
+
+
+RATE_KEYS = {k for k in ROWS if k.endswith(("_kg", "_price", "_l"))}
+
+
+def read_area_scope(path: Path, month: int, kind: str, area: str) -> ScopeData:
+    """Same shape as read_scope but for one AAO area (E1.1 / E1.2 / E2), from the file's own AAO subtotal columns.
+
+    Plan: the area total columns (EST1/1 … at the end of the sheet) carry INCOME TAX = 0, while the area Core/PMT
+    columns and the plant columns carry it (Aug'69 file). So the plan total is Core + PMT for every amount row;
+    rows that differ from the file's total column are kept in `overrides` for the report note."""
+    sheet = f"{MONTH_ABBR[month - 1]}{kind}"
+    sd = _read_cols(path, _sheet_rows(path, sheet), sheet, month, kind, area_columns(path, month, kind, area))
+    if kind == "P":
+        comb, core, pmt = sd["combined"], sd["core"], sd["pmt"]
+        for k in comb:
+            if k in RATE_KEYS:
+                continue
+            total = core[k] + pmt[k]
+            if abs(total - comb[k]) > 0.5:
+                sd.overrides[k] = (comb[k], total)
+            comb[k] = total
+    return sd
+
+
 # Plant-level columns. Actual sheets: row 8 AAO, 9 AO, 10 Core/PMT, 11 K-code, 14 Thai name (confirmed 10 Sep).
 # Plan sheets carry the K-code on row 8 and no AO filter row, so plan plants are looked up by code only.
 AAO_TO_AREA = {"EST1/1": "E1.1", "EST1/2": "E1.2", "EST2/1": "E2"}
+AREA_TO_AAO = {v: k for k, v in AAO_TO_AREA.items()}
 PLANT_KEYS = ("prod_volume", "volume", "net_price", "rawmat", "cartage", "assign", "labour", "tfc", "ebitda", "npat")
 
 

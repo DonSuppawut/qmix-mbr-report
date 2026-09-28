@@ -36,6 +36,7 @@ class Row:
 @dataclass
 class Block:
     heading: str
+    sheet: str = ""  # optional explicit sheet name (<h3 data-sheet="…">)
     tables: list[list[Row]] = field(default_factory=list)
 
 
@@ -54,7 +55,7 @@ def parse_blocks(html: str) -> list[Block]:
     parts = re.split(r"(<h[34][^>]*>.*?</h[34]>)", html, flags=re.S)
     blocks = []
     for i in range(1, len(parts), 2):
-        b = Block(_clean(parts[i]))
+        b = Block(_clean(parts[i]), _attr(parts[i], "data-sheet"))
         for t in re.findall(r"<table.*?</table>", parts[i + 1], flags=re.S):
             rows = []
             for tr in re.finditer(r"<tr([^>]*)>(.*?)</tr>", t, flags=re.S):
@@ -70,8 +71,9 @@ def parse_blocks(html: str) -> list[Block]:
 
 # ---------------------------------------------------------------- sheet names
 
-_SCOPE = (("EST รวม", "รวม"), ("Core", "Core"), ("PMT", "PMT"))
-_TOPIC = {"1": "Waterfall", "2": "Scorecard", "4": "RawMat", "5": "Assign", "6": "Cartage", "9": "Forecast"}
+_SCOPE = (("EST รวม", "รวม"), ("รวม (Core", "รวม"), ("Core", "Core"), ("PMT", "PMT"))  # 2nd: area reports
+_TOPIC = {"1": "Waterfall", "2": "Scorecard", "4": "RawMat", "5": "Assign", "6": "Cartage", "9": "Forecast",
+          "11": "Summary"}  # 11 = area-report summary (EST has 10 sections)
 _FIXED = {"1.4": "EBITDA Bridge", "3.1": "Segment", "3.1.1": "Segment Cost", "3.2.1": "Concentration",
           "3.2.2": "Turnover", "3.2.3": "Rebate", "3.3": "NC Quality", "5.4": "Assign by Plant",
           "6.4": "QMix vs Sub", "6.5": "Vendors", "6.6": "Cartage by Plant", "7.1": "Plants ≥AP profit",
@@ -79,9 +81,11 @@ _FIXED = {"1.4": "EBITDA Bridge", "3.1": "Segment", "3.1.1": "Segment Cost", "3.
           "10.1": "Summary"}
 
 
-def sheet_name(heading: str, used: set[str]) -> str:
+def sheet_name(heading: str, used: set[str], explicit: str = "") -> str:
     no = heading.split(" ", 1)[0]
-    if no in _FIXED:
+    if explicit:
+        name = explicit
+    elif no in _FIXED:
         name = f"{no} {_FIXED[no]}"
     elif no.startswith("8."):
         name = f"{no} Area {heading.split()[2]}"
@@ -315,6 +319,69 @@ def forecast_charts(book: Book, ws, spec: dict, data_col: int, data_row: int) ->
     return charts
 
 
+def tu_chart(book: Book, ws, spec: dict, data_col: int, data_row: int):
+    """TU per truck as columns (QMix blue / subcontractor orange) + target as a line."""
+    rows = spec["rows"]
+    head = ["รถ", spec["unit"], "เป้า"]
+    ws.write_row(data_row, data_col, head, book.fmt(bold=True, font_color="#7A8580"))
+    for i, (lab, v, _kind) in enumerate(rows):
+        ws.write_row(data_row + 1 + i, data_col, [lab, v, spec["target"]], book.fmt(font_color="#7A8580", num_format="#,##0"))
+    sheet, n = ws.get_name(), len(rows)
+    cats = [sheet, data_row + 1, data_col, data_row + n, data_col]
+    col = book.wb.add_chart({"type": "column"})
+    col.add_series({"name": spec["unit"], "categories": cats,
+                    "values": [sheet, data_row + 1, data_col + 1, data_row + n, data_col + 1],
+                    "points": [{"fill": {"color": C["core"] if kind == "QMix" else C["pmt"]}} for *_, kind in rows],
+                    "gap": 60})
+    line = book.wb.add_chart({"type": "line"})
+    line.add_series({"name": f"เป้า {spec['target']:,.0f}", "categories": cats,
+                     "values": [sheet, data_row + 1, data_col + 2, data_row + n, data_col + 2],
+                     "line": {"color": C["neg"], "width": 2.5}, "marker": {"type": "none"}})
+    col.combine(line)
+    col.set_title({"name": spec["title"], "name_font": {"name": FONT, "size": 11}})
+    col.set_legend({"position": "bottom", "font": {"name": FONT, "size": 9}})
+    col.set_y_axis({"num_format": "#,##0", "num_font": {"name": FONT, "size": 9},
+                    "major_gridlines": {"visible": True, "line": {"color": "#E0DED6"}}})
+    col.set_x_axis({"num_font": {"name": FONT, "size": 9}})
+    col.set_size({"width": 900, "height": 320})
+    col.show_hidden_data()
+    return col
+
+
+def quality_chart(book: Book, ws, spec: dict, data_col: int, data_row: int):
+    """Strength per sample (actual 7/28-day + target lines); empty cells leave gaps."""
+    labels, series = spec["labels"], spec["series"]
+    ws.write_row(data_row, data_col, ["ตัวอย่าง"] + [name for name, _ in series], book.fmt(bold=True, font_color="#7A8580"))
+    fmt = book.fmt(font_color="#7A8580", num_format="#,##0.0")
+    for i, lab in enumerate(labels):
+        ws.write_string(data_row + 1 + i, data_col, lab, fmt)
+        for k, (_, vs) in enumerate(series):
+            if vs[i] is not None:
+                ws.write_number(data_row + 1 + i, data_col + 1 + k, vs[i], fmt)
+    sheet, n = ws.get_name(), len(labels)
+    ch = book.wb.add_chart({"type": "line"})
+    colors = ["#1F6FB2", "#2E9B5B", "#E1912B", "#C0392B", "#7A8580"]
+    dashes = [None, None, "dash", None, "round_dot"]
+    for k, (name, _) in enumerate(series):
+        line = {"color": colors[k % 5], "width": 2}
+        if dashes[k % 5]:
+            line["dash_type"] = dashes[k % 5]
+        ch.add_series({"name": name, "categories": [sheet, data_row + 1, data_col, data_row + n, data_col],
+                       "values": [sheet, data_row + 1, data_col + 1 + k, data_row + n, data_col + 1 + k],
+                       "line": line,
+                       "marker": {"type": "circle", "size": 4, "fill": {"color": colors[k]}, "border": {"color": colors[k]}}
+                       if k < 2 else {"type": "none"}})
+    ch.show_blanks_as("gap")
+    ch.set_title({"name": spec["title"], "name_font": {"name": FONT, "size": 11}})
+    ch.set_legend({"position": "bottom", "font": {"name": FONT, "size": 9}})
+    ch.set_y_axis({"name": "ksc", "num_format": "#,##0", "num_font": {"name": FONT, "size": 9},
+                   "name_font": {"name": FONT, "size": 9}, "major_gridlines": {"visible": True, "line": {"color": "#E0DED6"}}})
+    ch.set_x_axis({"num_font": {"name": FONT, "size": 8}})
+    ch.set_size({"width": 900, "height": 340})
+    ch.show_hidden_data()
+    return ch
+
+
 # ---------------------------------------------------------------- build
 
 def build_xlsx(html: str, charts: list[dict], out: Path, title: str) -> dict:
@@ -330,7 +397,7 @@ def build_xlsx(html: str, charts: list[dict], out: Path, title: str) -> dict:
     cover.set_column(0, 0, 60)
     cover.set_column(1, 1, 90)
     for i, b in enumerate(blocks):
-        name = sheet_name(b.heading, used)
+        name = sheet_name(b.heading, used, b.sheet)
         ws = book.wb.add_worksheet(name)
         cover.write_url(3 + i, 0, f"internal:'{name}'!A1", book.fmt(font_color="#1F6FB2", underline=1), name)
         cover.write_string(3 + i, 1, b.heading, book.fmt())
@@ -362,6 +429,12 @@ def build_xlsx(html: str, charts: list[dict], out: Path, title: str) -> dict:
                 chart_row += 2 * h + 2
                 data_row += len(spec["rows"]) + 3
                 info["charts"] += len(chs)
+            elif spec["kind"] in ("tu", "quality"):
+                ch = (tu_chart if spec["kind"] == "tu" else quality_chart)(book, ws, spec, data_col, data_row)
+                ws.insert_chart(chart_row, 0, ch)
+                chart_row += 18
+                data_row += (len(spec["rows"]) if spec["kind"] == "tu" else len(spec["labels"])) + 3
+                info["charts"] += 1
             elif spec["kind"] == "forecast":
                 chs = forecast_charts(book, ws, spec, data_col, data_row)
                 for k, ch in enumerate(chs):

@@ -1,0 +1,18 @@
+{
+  "_note": "Google Sheet 'ตารางสรุปการเก็บข้อมูล กำลังอัด' per plant (Don, 2026-09-28). Shared as 'anyone with the link' — the build downloads each as .xlsx into data/snapshots/<ym>/quality/ (kept, so re-runs use the same numbers; delete the file or pass --refresh-sheets to re-download). One sheet per month named MM.2026 / MM/2026 / MM2026 (optionally with a '(…)' suffix per strength class); sheets named plain '07', '08' are 2025. K479 โรงหล่อโปทีม has no 2026 production (Don) — not listed.",
+  "sheets": {
+    "K4A1": "1pVcRa2UKtAbyfqFEio2D2QVWWWzqSyyTGZhzIesXwyQ",
+    "K4A5": "1Pk7EO9h38osAJlLf2zF-NAA33sBsCP5gQY79hTVcuB8",
+    "K4A7": "1NmSHIxYfBaOYMlypvi0EJXn5i01mwvKJu6QqvoO-ag0",
+    "K4B6": "1AglmwF9_XJlZiOG0V7XtZXZM11c3qHYyHwvzhYW052Q",
+    "K4L1": "1xmw58FWFqlQNjQPQVMDPw0oRfTYyBOI0Vh780TJGJ1o",
+    "K460": "1Tdcj3hgjaVinsF8txlU8sNbv7SIaRkTrhuYnGRTgJhU",
+    "K461": "15HOre5GDoc7GFYho-8pe1fmSfxTJCJV8vc26qvJ8yhE",
+    "K463": "1xxA2Owk_fjI2BulqP9ky223GrpI9q0Qbngh19A1tBAc",
+    "K465": "18mm6tws98X3_1KQmaWxaDYYOmTr7KlkShQgLgRKAH5I",
+    "K467": "1zBjswI0lEhrATCRaRuqYvaUrHuf3gUR7NyeyI6Z-D_g",
+    "K471": "1mZWZR-LmVE_S_QIvwrVLuJE94Pc4tcoHIC5-pzX5njA",
+    "K473": "1JrZgXj_T_k80QpHQ8aCXeFWID-msY23bYbta-4WctZo",
+    "K4A9": "1VtaJolXlvJIGY5JTv0sFs1dljWWi4PcmQFVy9HGBcak"
+  }
+}

@@ -206,3 +206,106 @@ def waterfall(start_label: str, start: float, steps: list[tuple[str, float]], en
                        f'text-anchor="middle" fill="#1B2624">{esc(line)}</text>')
     out.append("</svg>")
     return "\n".join(out)
+
+
+C_QMIX = "#1F6FB2"
+C_SUB = "#E1912B"
+C_TARGET = "#C0392B"
+
+
+def tu_bars(rows: list[tuple[str, float, str]], target: float, title: str, unit: str,
+            width: int = 820, height: int = 300, sheet: str = "") -> str:
+    """rows = (truck label, TU, 'QMix' | 'Sub'); vertical bars with a horizontal target line."""
+    CHART_LOG.append({"kind": "tu", "sheet": sheet, "title": title, "rows": rows, "target": target, "unit": unit})
+    hi = max([target, *(v for _, v, _ in rows)]) * 1.12
+    ticks = _nice_ticks(0.0, hi, 5)
+    hi = max(hi, ticks[-1])
+    ml, mr, mt, mbm = 52, 10, 26, 40
+    pw, ph = width - ml - mr, height - mt - mbm
+    y = lambda v: mt + (hi - v) / hi * ph
+    slot = pw / max(len(rows), 1)
+    bw = min(slot * 0.62, 46)
+    out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" role="img" '
+           f'font-family="{FONT}" class="chart"><title>{esc(title)}</title>']
+    for t in ticks:
+        out.append(f'<line x1="{ml}" x2="{width - mr}" y1="{y(t):.1f}" y2="{y(t):.1f}" stroke="{C_GRID}"/>')
+        out.append(f'<text x="{ml - 6}" y="{y(t) + 4:.1f}" font-size="12" text-anchor="end" fill="{C_AXIS}">{t:,.0f}</text>')
+    out.append(f'<text x="{ml - 6}" y="{mt - 10}" font-size="12" text-anchor="end" fill="{C_AXIS}">{esc(unit)}</text>')
+    for i, (lab, v, kind) in enumerate(rows):
+        x = ml + i * slot + (slot - bw) / 2
+        out.append(f'<rect x="{x:.1f}" y="{y(v):.1f}" width="{bw:.1f}" height="{max(y(0) - y(v), 0.8):.1f}" '
+                   f'fill="{C_QMIX if kind == "QMix" else C_SUB}"/>')
+        out.append(f'<text x="{x + bw / 2:.1f}" y="{y(v) - 5:.1f}" font-size="12" font-weight="600" text-anchor="middle" '
+                   f'fill="{C_AXIS}">{v:,.0f}</text>')
+        out.append(f'<text x="{x + bw / 2:.1f}" y="{height - mbm + 16}" font-size="12" text-anchor="middle" '
+                   f'fill="#1B2624">{esc(lab)}</text>')
+    out.append(f'<line x1="{ml}" x2="{width - mr}" y1="{y(target):.1f}" y2="{y(target):.1f}" stroke="{C_TARGET}" '
+               f'stroke-width="2.5"/>')
+    out.append(f'<text x="{width - mr - 4}" y="{y(target) - 6:.1f}" font-size="12.5" font-weight="700" text-anchor="end" '
+               f'fill="{C_TARGET}">เป้า {target:,.0f}</text>')
+    out.append(f'<text x="{ml}" y="{height - 6}" font-size="12.5" fill="{C_AXIS}"><tspan fill="{C_QMIX}">■</tspan> รถ QMix   '
+               f'<tspan fill="{C_SUB}">■</tspan> รถร่วม</text>')
+    out.append("</svg>")
+    return "\n".join(out)
+
+
+QC_COLORS = ["#1F6FB2", "#2E9B5B", "#E1912B", "#C0392B", "#7A8580"]
+QC_DASH = ["", "", "6,4", "", "2,3"]
+
+
+def quality_lines(labels: list[str], groups: list[tuple[str, int]], series: list[tuple[str, list]], title: str,
+                  width: int = 820, height: int = 330, sheet: str = "") -> str:
+    """labels = one per sample (x axis); groups = (month label, sample count) in order, drawn as bands;
+    series = (name, values with None for gaps) — actual 7/28-day strength and the three target lines."""
+    CHART_LOG.append({"kind": "quality", "sheet": sheet, "title": title, "labels": labels, "series": series})
+    vals = [v for _, vs in series for v in vs if v is not None]
+    lo, hi = (min(vals), max(vals)) if vals else (0.0, 1.0)
+    ticks = _nice_ticks(lo - (hi - lo) * 0.08, hi + (hi - lo) * 0.08, 5)
+    lo, hi = ticks[0], ticks[-1]
+    ml, mr, mt, mbm = 48, 10, 30, 62
+    pw, ph = width - ml - mr, height - mt - mbm
+    n = max(len(labels), 1)
+    slot = pw / n
+    x = lambda i: ml + (i + 0.5) * slot
+    y = lambda v: mt + (hi - v) / ((hi - lo) or 1) * ph
+    out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" role="img" '
+           f'font-family="{FONT}" class="chart"><title>{esc(title)}</title>']
+    start = 0
+    for k, (mlabel, cnt) in enumerate(groups):
+        if k % 2:
+            out.append(f'<rect x="{ml + start * slot:.1f}" y="{mt}" width="{cnt * slot:.1f}" height="{ph}" fill="#F7F6F2"/>')
+        out.append(f'<text x="{ml + (start + cnt / 2) * slot:.1f}" y="{mt - 10}" font-size="12.5" font-weight="700" '
+                   f'text-anchor="middle" fill="#1B2624">{esc(mlabel)}</text>')
+        start += cnt
+    for t in ticks:
+        out.append(f'<line x1="{ml}" x2="{width - mr}" y1="{y(t):.1f}" y2="{y(t):.1f}" stroke="{C_GRID}"/>')
+        out.append(f'<text x="{ml - 6}" y="{y(t) + 4:.1f}" font-size="12" text-anchor="end" fill="{C_AXIS}">{t:,.0f}</text>')
+    for i, lab in enumerate(labels):
+        out.append(f'<text x="{x(i):.1f}" y="{mt + ph + 15}" font-size="10.5" text-anchor="middle" fill="{C_AXIS}">{esc(lab)}</text>')
+    for k, (name, vs) in enumerate(series):
+        color, dash = QC_COLORS[k % 5], QC_DASH[k % 5]
+        seg: list[str] = []
+        segs = []
+        for i, v in enumerate(vs):
+            if v is None:
+                if seg:
+                    segs.append(seg)
+                seg = []
+            else:
+                seg.append(f"{x(i):.1f},{y(v):.1f}")
+        if seg:
+            segs.append(seg)
+        for s in segs:
+            out.append(f'<polyline points="{" ".join(s)}" fill="none" stroke="{color}" stroke-width="2"'
+                       + (f' stroke-dasharray="{dash}"' if dash else "") + "/>")
+        if k < 2:  # actual results get point markers
+            for i, v in enumerate(vs):
+                if v is not None:
+                    out.append(f'<circle cx="{x(i):.1f}" cy="{y(v):.1f}" r="2.8" fill="{color}"/>')
+        lx = ml + (k % 3) * 250
+        ly = height - 26 + (k // 3) * 16
+        out.append(f'<line x1="{lx}" x2="{lx + 22}" y1="{ly - 4}" y2="{ly - 4}" stroke="{color}" stroke-width="2.5"'
+                   + (f' stroke-dasharray="{dash}"' if dash else "") + "/>"
+                   f'<text x="{lx + 28}" y="{ly}" font-size="12" fill="{C_AXIS}">{esc(name)}</text>')
+    out.append("</svg>")
+    return "\n".join(out)

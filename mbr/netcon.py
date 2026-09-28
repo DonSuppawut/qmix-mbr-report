@@ -17,10 +17,10 @@ MEGA_OVERRIDE = ("ไชน่า สเตท",)
 CCP_CODE = "7312095"
 
 # 1-based columns of the monthly sheet (header row 3)
-COL = {"director": 3, "site": 7, "site_name": 8, "cust_code": 9, "cust_name": 10, "project_vol": 11, "segment": 12,
+COL = {"plant": 1, "director": 3, "aao": 5, "site": 7, "site_name": 8, "cust_code": 9, "cust_name": 10, "project_vol": 11, "segment": 12,
        "list_price": 13, "net_price": 15, "qty": 16, "total_net": 23, "cartage": 24, "rebate_bt": 35,
        "rawmat": 38, "tvc": 40, "netcon": 41}
-HEADERS = {3: "Director", 7: "หน่วยงาน", 9: "รหัสลูกค้า", 11: "ปริมาณโครงการ", 12: "Segment", 16: "SUM_QTY",
+HEADERS = {3: "Director", 5: "AAO", 7: "หน่วยงาน", 9: "รหัสลูกค้า", 11: "ปริมาณโครงการ", 12: "Segment", 16: "SUM_QTY",
            35: "Rebate เพิ่ม B/Ton", 41: "Nen Con (THB)"}
 
 
@@ -44,6 +44,8 @@ class Row:
     tvc: float
     netcon: float
     rebate_bt: float
+    plant: str = ""
+    aao: str = ""   # EST1/1, EST1/2, EST2
 
 
 def netcon_path(account: Path, year: int, month: int) -> Path:
@@ -94,10 +96,19 @@ def read_netcon(path: Path, year: int, month: int) -> list[Row]:
                 cust_name=cust, project_vol=f("project_vol"),
                 segment=classify(str(g("segment") or ""), f("project_vol"), cust),
                 list_price=f("list_price"), qty=f("qty"), total_net=f("total_net"), cartage=f("cartage"),
-                rawmat=f("rawmat"), tvc=f("tvc"), netcon=f("netcon"), rebate_bt=f("rebate_bt")))
+                rawmat=f("rawmat"), tvc=f("tvc"), netcon=f("netcon"), rebate_bt=f("rebate_bt"),
+                plant=str(g("plant") or "").strip(), aao=str(g("aao") or "").strip()))
     finally:
         wb.close()
     return rows
+
+
+# Net Con files name area E2 "EST2" (TVC: "EST2/1").
+AREA_AAO = {"E1.1": ("EST1/1",), "E1.2": ("EST1/2",), "E2": ("EST2", "EST2/1")}
+
+
+def area_rows(rows: list[Row], area: str) -> list[Row]:
+    return [r for r in rows if r.aao in AREA_AAO[area]]
 
 
 def by_segment(rows: list[Row]) -> dict[str, dict]:

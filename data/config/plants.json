@@ -2,11 +2,68 @@
   "_note": "Plant classification (baseline Jul/Aug 69 — re-confirm with Don every month). Source: spec section 3.8 + Aug'69 report (Section 7/8 excluded 15 plants).",
   "hidden_in_plant_sections": {
     "_why": "Section 7 and 8 exclude Insource and ร่วมมิตร/Insource Other plants (Don); their EBITDA stays in the Combined totals.",
-    "insource": ["K4C0", "K4C1", "K4C2", "K4C3", "K4C4", "K4C6", "K4C7", "K4C8", "K4C9"],
-    "insource_other": ["K014", "K016", "K019", "K492", "K493", "K494"]
+    "insource": [
+      "K4C0",
+      "K4C1",
+      "K4C2",
+      "K4C3",
+      "K4C4",
+      "K4C6",
+      "K4C7",
+      "K4C8",
+      "K4C9"
+    ],
+    "insource_other": [
+      "K014",
+      "K016",
+      "K019",
+      "K492",
+      "K493",
+      "K494"
+    ]
   },
-  "trading_goods": ["K491", "K4L4", "K498", "KX20"],
-  "closed_permanent": ["K481", "K486", "K016", "K5J0"],
-  "closed_temporary": ["K479", "K485"],
-  "not_yet_open": ["K5J5", "K4B7", "K4C5", "K495", "K496"]
+  "trading_goods": [
+    "K491",
+    "K4L4",
+    "K498",
+    "KX20"
+  ],
+  "closed_permanent": [
+    "K481",
+    "K486",
+    "K016",
+    "K5J0"
+  ],
+  "closed_temporary": [
+    "K479",
+    "K485"
+  ],
+  "not_yet_open": [
+    "K5J5",
+    "K4B7",
+    "K4C5",
+    "K495",
+    "K496"
+  ],
+  "tu": {
+    "_why": "Don 2026-09-28: TU only for Core plants + ศรีราชา (K471) + แหลมฉบัง (K473); target 380 m³ per truck per month; TU per truck = m³ at any plant ÷ distinct days the truck ran × 28 (registered trucks of the plant, incl. subcontractors).",
+    "plants": [
+      "K460",
+      "K461",
+      "K463",
+      "K465",
+      "K467",
+      "K4A1",
+      "K4A5",
+      "K4A7",
+      "K4A9",
+      "K4L1",
+      "K471",
+      "K473"
+    ],
+    "target_m3": 380,
+    "days": 28,
+    "registry_sheet": "1J4e-e9UkPhozaLzyVegDMwaiu2OQpN6NEnbEI-WiEPw",
+    "_registry": "Google Sheet 'รถโม่กิจการตะวันออก' (link-shared read-only 2026-09-28), tab YYYY-MM per month — downloaded by the build"
+  }
 }

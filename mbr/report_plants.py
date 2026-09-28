@@ -62,8 +62,10 @@ def section6_plants(md: MonthData) -> list[str]:
                           f"({esc(a['reason'])})" for a in md.adjustments["cartage_plant"])
         note = ('<p class="footnote">* ปรับปรุง GL ตามที่ Don ระบุ — ' + items +
                 ' — ใช้เฉพาะตารางนี้ ไม่กระทบ EBITDA/NPAT หรือหัวข้ออื่น</p>')
-    title = f"6.6 รายโรงงาน: Cartage {cur.split()[0]} เทียบ {lm}" + (" (รวมการแก้ไข GL)" if adj else "")
-    return [f"<h3>{esc(title)}</h3>",
+    no = "6.4" if md.area else "6.6"  # area reports have no 6.4/6.5 (vendor cartage is EST-only)
+    title = f"{no} รายโรงงาน: Cartage {cur.split()[0]} เทียบ {lm}" + (" (รวมการแก้ไข GL)" if adj else "")
+    tag = '<h3 data-sheet="6.4 Cartage by Plant">' if md.area else "<h3>"  # area reports have no 6.4 vendor sheet
+    return [f"{tag}{esc(title)}</h3>",
             '<p class="meta">Cartage ต่อ m³ ผลิต รายโรงงาน เรียงตามขนาดการเปลี่ยนแปลง</p>',
             plant_unit_table(md, "cartage", "Cartage", adj), note,
             _box("watch", "ข้อสังเกต", md.narrative.get("s6.plants"))]
@@ -144,10 +146,10 @@ def area_members(md: MonthData, area: str) -> list:
 def section8(md: MonthData) -> str:
     cur = th_month_short(md.year, md.month)
     ytd = f"สะสม ม.ค.–{cur}"
-    parts = ['<h2 id="s8">8. ผลประกอบการรายโรงงานแยกตามเขต</h2>',
+    parts = [f'<h2 id="s8">8. ผลประกอบการรายโรงงาน{"ในเขต " + esc(md.area) if md.area else "แยกตามเขต"}</h2>',
              f'<p class="meta">แสดงเฉพาะโรงงานที่มีปริมาณขายสะสม (YTD) มากกว่า 0 m³ และไม่รวม Insource/ร่วมมิตร '
              f'(เกณฑ์เดียวกับหัวข้อ 7) เรียงตาม EBITDA เดือน {esc(cur)} จากมากไปน้อย — แถวบน = เดือนนี้, แถวล่าง = สะสม</p>']
-    for i, area in enumerate(AREAS, 1):
+    for i, area in enumerate((md.area,) if md.area else AREAS, 1):
         members = area_members(md, area)
         if not members:
             continue
